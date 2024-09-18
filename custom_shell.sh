@@ -13,28 +13,24 @@ install_if_missing() {
 }
 
 # Function to handle "Oh My Posh" theme selection
-choose_theme() {
-    # List of known Oh My Posh themes
-    known_themes=(
-        "paradox"
-        "starship"
-        "atomic"
-        "powerlevel10k_classic"
+choose_simple_theme() {
+    # List of known simple Oh My Posh themes (text-based)
+    known_simple_themes=(
         "jandedobbeleer"
-        "tonybaloney"
         "robbyrussell"
-        "ys"
+        "paradox"
+        "tonybaloney"
     )
 
-    echo "Please choose a theme from the list below:"
-    for i in "${!known_themes[@]}"; do
-        echo "$((i + 1)). ${known_themes[$i]}"
+    echo "Please choose a simple theme from the list below:"
+    for i in "${!known_simple_themes[@]}"; do
+        echo "$((i + 1)). ${known_simple_themes[$i]}"
     done
 
     read -p "Enter the number corresponding to the theme you want to use: " theme_choice
 
-    if [[ $theme_choice -ge 1 && $theme_choice -le ${#known_themes[@]} ]]; then
-        selected_theme="${known_themes[$((theme_choice - 1))]}"
+    if [[ $theme_choice -ge 1 && $theme_choice -le ${#known_simple_themes[@]} ]]; then
+        selected_theme="${known_simple_themes[$((theme_choice - 1))]}"
         echo "You selected theme: $selected_theme"
         # Apply the theme
         oh-my-posh init bash --config "~/.poshthemes/$selected_theme.omp.json" | tee
@@ -76,13 +72,12 @@ main() {
         echo "Oh My Posh is already installed."
     fi
 
-    # Step 3: Run the theme selection function
-    choose_theme
+    # Step 3: Run the simple theme selection function
+    choose_simple_theme
 
     echo "Applying selected theme..."
 
-    # Step 4: Additional operations if needed
-    echo "Reloading terminal settings..."
+    # Step 4: Reload shell to apply changes
     exec bash  # Reload the shell to apply changes
 
     echo "Setup completed!"
