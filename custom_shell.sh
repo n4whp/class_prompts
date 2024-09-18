@@ -28,6 +28,29 @@ if ! sudo apt install -y fontconfig; then
     exit 1
 fi
 
+# Ensure the ~/.local/share/fonts directory exists and is writable
+FONT_DIR="$HOME/.local/share/fonts"
+if [ ! -d "$FONT_DIR" ]; then
+    echo "Creating font directory at $FONT_DIR..."
+    mkdir -p "$FONT_DIR"
+fi
+
+# Check if the directory is writable
+if [ ! -w "$FONT_DIR" ]; then
+    echo "Error: No write permission to $FONT_DIR."
+    echo "Attempting to fix permissions..."
+    
+    # Try to change ownership of the folder to the current user
+    sudo chown $USER:$USER "$FONT_DIR"
+    sudo chmod u+rwx "$FONT_DIR"
+    
+    # Check if permission was successfully fixed
+    if [ ! -w "$FONT_DIR" ]; then
+        echo "Error: Unable to gain write permission to $FONT_DIR. Exiting."
+        exit 1
+    fi
+fi
+
 # Clean up previous install if necessary
 if [ -f "FiraCode.zip" ]; then
     echo "Removing old FiraCode.zip..."
@@ -41,9 +64,9 @@ if ! wget https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1.0/FiraC
     exit 1
 fi
 
-# Unzip the font
-echo "Unzipping FiraCode.zip..."
-if ! unzip FiraCode.zip -d ~/.local/share/fonts; then
+# Unzip the font into the font directory
+echo "Unzipping FiraCode.zip into $FONT_DIR..."
+if ! unzip FiraCode.zip -d "$FONT_DIR"; then
     echo "Error: Failed to unzip FiraCode.zip. Exiting."
     exit 1
 fi
