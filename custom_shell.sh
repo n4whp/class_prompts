@@ -1,12 +1,16 @@
 #!/bin/bash
 
-# Cleaning up font cache
-echo "Cleaning up..."
-fc-cache -r
-
-# Refreshing font cache
-echo "Refreshing font cache with fc-cache..."
-fc-cache
+# Function to check and install a package if not installed
+install_if_missing() {
+    package=$1
+    if ! dpkg -l | grep -qw "$package"; then
+        echo "Package $package is not installed. Installing it now..."
+        sudo apt-get update
+        sudo apt-get install -y "$package"
+    else
+        echo "$package is already installed."
+    fi
+}
 
 # Function to handle "Oh My Posh" theme selection
 choose_theme() {
@@ -40,25 +44,46 @@ choose_theme() {
     fi
 }
 
+# Function to install Oh My Posh and download themes
+install_oh_my_posh() {
+    echo "Installing Oh My Posh..."
+
+    # Install Oh My Posh
+    sudo wget https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-linux-amd64 -O /usr/local/bin/oh-my-posh
+    sudo chmod +x /usr/local/bin/oh-my-posh
+
+    # Make sure the themes directory exists
+    mkdir -p ~/.poshthemes
+    wget https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/themes.zip -O ~/.poshthemes/themes.zip
+    unzip ~/.poshthemes/themes.zip -d ~/.poshthemes
+    chmod u+rw ~/.poshthemes/*.json
+    rm ~/.poshthemes/themes.zip
+
+    echo "Oh My Posh installed successfully."
+}
+
 # Main function
 main() {
-    # Check if oh-my-posh is installed
+    # Step 1: Install necessary packages
+    install_if_missing "wget"
+    install_if_missing "unzip"
+    install_if_missing "jq"
+
+    # Step 2: Install Oh My Posh if it's missing
     if ! command -v oh-my-posh &> /dev/null; then
-        echo "Oh My Posh is not installed. Installing now..."
-        sudo apt install oh-my-posh
+        install_oh_my_posh
+    else
+        echo "Oh My Posh is already installed."
     fi
 
-    # Run the choose_theme function
+    # Step 3: Run the theme selection function
     choose_theme
 
     echo "Applying selected theme..."
 
-    # More operations like reloading terminal, fonts, or anything else you have
+    # Step 4: Additional operations if needed
     echo "Reloading terminal settings..."
-
-    # Call other parts of your script here if needed
-    # For example:
-    # ./some_other_part_of_the_script.sh
+    exec bash  # Reload the shell to apply changes
 
     echo "Setup completed!"
 }
