@@ -20,6 +20,7 @@ install_if_missing "curl"
 install_if_missing "jq"
 install_if_missing "wget"
 install_if_missing "unzip"
+install_if_missing "xmllint"
 
 # Install fontconfig (which includes fc-cache)
 echo "Installing fontconfig package (for fc-cache)..."
@@ -40,11 +41,9 @@ if [ ! -w "$FONT_DIR" ]; then
     echo "Error: No write permission to $FONT_DIR."
     echo "Attempting to fix permissions..."
     
-    # Try to change ownership of the folder to the current user
     sudo chown $USER:$USER "$FONT_DIR"
     sudo chmod u+rwx "$FONT_DIR"
     
-    # Check if permission was successfully fixed
     if [ ! -w "$FONT_DIR" ]; then
         echo "Error: Unable to gain write permission to $FONT_DIR. Exiting."
         exit 1
@@ -85,25 +84,42 @@ fi
 # Fetch available themes using Oh My Posh
 echo "Fetching available Oh My Posh themes..."
 
-# Capture response from API to validate if it's valid JSON
 API_RESPONSE=$(curl -s https://ohmyposh.dev/themes)
 
-# Check if the response is valid JSON before parsing it with jq
-if ! echo "$API_RESPONSE" | jq empty; then
-    echo "Error: The fetched response is not valid JSON. Dumping response:"
-    echo "$API_RESPONSE"
-    exit 1
-fi
+# Check if the response is HTML instead of JSON
+if echo "$API_RESPONSE" | grep -q "<html>"; then
+    echo "HTML detected in response. Attempting to parse for themes..."
+    
+    # Use xmllint to strip HTML and extract possible themes
+    THEMES=$(echo "$API_RESPONSE" | xmllint --html --xpath "//a[contains(@href, '.omp.json')]/text()" - 2>/dev/null)
+    
+    if [ -z "$THEMES" ]; then
+        echo "Error: Failed to parse HTML for themes. Exiting."
+        echo "Dumping HTML response:"
+        echo "$API_RESPONSE"
+        exit 1
+    fi
+    
+    echo "Extracted themes:"
+    echo "$THEMES"
+else
+    # Try parsing the response as JSON if it's not HTML
+    if ! echo "$API_RESPONSE" | jq empty; then
+        echo "Error: The fetched response is not valid JSON. Dumping response:"
+        echo "$API_RESPONSE"
+        exit 1
+    fi
 
-# If the response is valid, proceed to list themes
-THEMES=$(echo "$API_RESPONSE" | jq -r '.[]')
-if [ -z "$THEMES" ]; then
-    echo "Error: Could not retrieve themes. Exiting."
-    exit 1
-fi
+    # If valid JSON, extract themes
+    THEMES=$(echo "$API_RESPONSE" | jq -r '.[]')
+    if [ -z "$THEMES" ]; then
+        echo "Error: Could not retrieve themes. Exiting."
+        exit 1
+    fi
 
-echo "Here are the available Oh My Posh themes:"
-echo "$THEMES"
+    echo "Here are the available Oh My Posh themes:"
+    echo "$THEMES"
+fi
 
 # Prompt user to select a theme
 read -p "Enter theme name: " theme_name
