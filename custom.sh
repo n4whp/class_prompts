@@ -1,36 +1,71 @@
 #!/bin/bash
 
-# Function to check if a command exists and install it if not found
+# Function to install a missing package
 install_if_missing() {
-    if ! command -v "$1" &> /dev/null; then
-        echo "$1 could not be found. Installing $1..."
-        sudo apt update && sudo apt install -y "$1"
-    else
-        echo "$1 is already installed."
+    PACKAGE=$1
+    if ! command -v $PACKAGE &> /dev/null
+    then
+        echo "$PACKAGE could not be found. Installing $PACKAGE..."
+        sudo apt update && sudo apt install -y $PACKAGE
+        if ! command -v $PACKAGE &> /dev/null
+        then
+            echo "Error: $PACKAGE could not be installed. Exiting."
+            exit 1
+        fi
     fi
 }
 
-# Check and install required dependencies
-install_if_missing curl
-install_if_missing jq
-install_if_missing unzip
+# Check and install dependencies
+install_if_missing "curl"
+install_if_missing "jq"
+install_if_missing "wget"
+install_if_missing "unzip"
+install_if_missing "fc-cache"  # Part of fontconfig
+install_if_missing "fontconfig"  # Installing fontconfig to ensure fonts work
 
 # Install Oh My Posh
 echo "Installing Oh My Posh..."
-sudo wget https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-linux-amd64 -O /usr/local/bin/oh-my-posh
+if ! sudo wget -q https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-linux-amd64 -O /usr/local/bin/oh-my-posh; then
+    echo "Error: Failed to download Oh My Posh."
+    exit 1
+fi
 sudo chmod +x /usr/local/bin/oh-my-posh
 
-# Install Nerd Fonts for Oh My Posh themes
-echo "Installing Nerd Fonts..."
-sudo wget https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip -O FiraCode.zip
-sudo unzip FiraCode.zip -d ~/.local/share/fonts
-sudo fc-cache -fv
-rm FiraCode.zip
+# Install fonts required for Oh My Posh themes
+FONT_DIR="$HOME/.local/share/fonts"
+FONT_ZIP="FiraCode.zip"
 
-# Fetch all available Oh My Posh themes
+echo "Installing Nerd Fonts..."
+if ! sudo wget -q https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip -O $FONT_ZIP; then
+    echo "Error: Failed to download FiraCode Nerd Font."
+    exit 1
+fi
+
+# Create the fonts directory if it doesn't exist
+mkdir -p $FONT_DIR
+
+# Unzip fonts into the font directory
+if ! sudo unzip -o $FONT_ZIP -d $FONT_DIR; then
+    echo "Error: Failed to extract FiraCode Nerd Fonts."
+    exit 1
+fi
+
+# Clear the font cache
+sudo fc-cache -fv || echo "Warning: Failed to refresh font cache."
+
+# Remove the font zip file
+rm -f $FONT_ZIP
+
+# Fetch all available themes
+THEMES_URL="https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/themes.json"
 echo "Fetching available themes..."
-THEMES_URL="https://ohmyposh.dev/docs/themes"
-THEMES=$(curl -s https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/themes.json | jq -r '.[].name')
+
+# Download and parse the themes JSON
+THEMES=$(curl -s $THEMES_URL | jq -r '.[].name')
+if [ -z "$THEMES" ]; then
+    echo "Error: Failed to fetch themes or no themes available."
+    exit 1
+fi
 
 # List all themes
 echo "Here are the available Oh My Posh themes:"
@@ -40,26 +75,24 @@ echo "$THEMES"
 echo "Please select a theme from the list above:"
 read -p "Enter theme name: " THEME_NAME
 
-# Verify if the selected theme exists
-if echo "$THEMES" | grep -q "^$THEME_NAME$"; then
-    echo "Selected theme: $THEME_NAME"
-else
-    echo "Theme not found. Exiting."
+# Verify the selected theme
+if ! echo "$THEMES" | grep -q "^$THEME_NAME$"; then
+    echo "Error: Theme '$THEME_NAME' not found."
     exit 1
 fi
 
 # Create the configuration file for Oh My Posh
 CONFIG_FILE="$HOME/.poshthemes/$THEME_NAME.json"
+mkdir -p "$HOME/.poshthemes"
 
 # Download the selected theme
 echo "Downloading the selected theme..."
-mkdir -p ~/.poshthemes
-curl -s https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/$THEME_NAME.omp.json -o $CONFIG_FILE
+if ! curl -s https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/$THEME_NAME.omp.json -o $CONFIG_FILE; then
+    echo "Error: Failed to download the theme '$THEME_NAME'."
+    exit 1
+fi
 
-# Set up Oh My Posh in the appropriate shell configuration
-echo "Configuring Oh My Posh with the selected theme..."
-
-# Detect shell and apply the theme accordingly
+# Detect the current shell
 if [[ $SHELL == *"bash"* ]]; then
     CONFIG_PATH="$HOME/.bashrc"
     echo "Detected bash shell."
@@ -73,11 +106,11 @@ else
     exit 1
 fi
 
-# Source the shell configuration to apply changes immediately
+# Source the shell configuration to apply changes immediately (in the current session)
 echo "Applying theme..."
-source $CONFIG_PATH
+source $CONFIG_PATH || echo "Warning: Could not apply theme immediately. It will take effect on next terminal session."
 
-# Reboot system prompt
+# Reboot system option
 read -p "Do you want to reboot the system now? (y/n): " REBOOT_ANSWER
 if [[ $REBOOT_ANSWER == "y" || $REBOOT_ANSWER == "Y" ]]; then
     echo "Rebooting the system..."
