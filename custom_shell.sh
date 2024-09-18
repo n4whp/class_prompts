@@ -84,19 +84,25 @@ fi
 
 # Fetch available themes using Oh My Posh
 echo "Fetching available Oh My Posh themes..."
-if ! curl -s https://ohmyposh.dev/themes | jq; then
-    echo "Error: Failed to fetch themes or jq is misconfigured. Exiting."
+
+# Capture response from API to validate if it's valid JSON
+API_RESPONSE=$(curl -s https://ohmyposh.dev/themes)
+
+# Check if the response is valid JSON before parsing it with jq
+if ! echo "$API_RESPONSE" | jq empty; then
+    echo "Error: The fetched response is not valid JSON. Dumping response:"
+    echo "$API_RESPONSE"
     exit 1
 fi
 
-# List themes
-echo "Here are the available Oh My Posh themes:"
-THEMES=$(curl -s https://ohmyposh.dev/themes | jq -r '.[]')
+# If the response is valid, proceed to list themes
+THEMES=$(echo "$API_RESPONSE" | jq -r '.[]')
 if [ -z "$THEMES" ]; then
     echo "Error: Could not retrieve themes. Exiting."
     exit 1
 fi
 
+echo "Here are the available Oh My Posh themes:"
 echo "$THEMES"
 
 # Prompt user to select a theme
