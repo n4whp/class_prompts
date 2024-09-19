@@ -1,87 +1,34 @@
 #!/bin/bash
 
-# Function to check and install a package if not installed
-install_if_missing() {
-    package=$1
-    if ! dpkg -l | grep -qw "$package"; then
-        echo "Package $package is not installed. Installing it now..."
-        sudo apt-get update
-        sudo apt-get install -y "$package"
-    else
-        echo "$package is already installed."
-    fi
+# Backup the existing .bashrc
+cp ~/.bashrc ~/.bashrc.bak
+
+# Define the custom prompt
+CUSTOM_PS1='\[\e[1;32m\]┌──(\[\e[1;31m\]\u\[\e[1;32m\]㉿\h)-[\[\e[1;34m\]\w\[\e[1;32m\]]\n└─\$ \[\e[m\]'
+
+# Check if the .bashrc already contains the custom prompt
+if grep -q 'CUSTOM_PS1' ~/.bashrc; then
+    echo "Custom prompt already set in .bashrc"
+    exit 1
+fi
+
+# Append the changes to .bashrc
+cat <<EOF >> ~/.bashrc
+
+# Save the original PS1 prompt
+if [ -z "\$ORIGINAL_PS1" ]; then
+    export ORIGINAL_PS1="\$PS1"
+fi
+
+# Custom prompt
+export PS1='$CUSTOM_PS1'
+
+# Optional: Function to revert to the original prompt
+revert_prompt() {
+    export PS1="\$ORIGINAL_PS1"
 }
+EOF
 
-# Function to handle "Oh My Posh" theme selection
-choose_simple_theme() {
-    # List of known simple Oh My Posh themes (text-based)
-    known_simple_themes=(
-        "jandedobbeleer"
-        "robbyrussell"
-        "paradox"
-        "tonybaloney"
-    )
-
-    echo "Please choose a simple theme from the list below:"
-    for i in "${!known_simple_themes[@]}"; do
-        echo "$((i + 1)). ${known_simple_themes[$i]}"
-    done
-
-    read -p "Enter the number corresponding to the theme you want to use: " theme_choice
-
-    if [[ $theme_choice -ge 1 && $theme_choice -le ${#known_simple_themes[@]} ]]; then
-        selected_theme="${known_simple_themes[$((theme_choice - 1))]}"
-        echo "You selected theme: $selected_theme"
-        # Apply the theme
-        oh-my-posh init bash --config "~/.poshthemes/$selected_theme.omp.json" | tee
-    else
-        echo "Invalid choice, please run the script again."
-        exit 1
-    fi
-}
-
-# Function to install Oh My Posh and download themes
-install_oh_my_posh() {
-    echo "Installing Oh My Posh..."
-
-    # Install Oh My Posh
-    sudo wget https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-linux-amd64 -O /usr/local/bin/oh-my-posh
-    sudo chmod +x /usr/local/bin/oh-my-posh
-
-    # Make sure the themes directory exists
-    mkdir -p ~/.poshthemes
-    wget https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/themes.zip -O ~/.poshthemes/themes.zip
-    unzip ~/.poshthemes/themes.zip -d ~/.poshthemes
-    chmod u+rw ~/.poshthemes/*.json
-    rm ~/.poshthemes/themes.zip
-
-    echo "Oh My Posh installed successfully."
-}
-
-# Main function
-main() {
-    # Step 1: Install necessary packages
-    install_if_missing "wget"
-    install_if_missing "unzip"
-    install_if_missing "jq"
-
-    # Step 2: Install Oh My Posh if it's missing
-    if ! command -v oh-my-posh &> /dev/null; then
-        install_oh_my_posh
-    else
-        echo "Oh My Posh is already installed."
-    fi
-
-    # Step 3: Run the simple theme selection function
-    choose_simple_theme
-
-    echo "Applying selected theme..."
-
-    # Step 4: Reload shell to apply changes
-    exec bash  # Reload the shell to apply changes
-
-    echo "Setup completed!"
-}
-
-# Run the main function
-main
+# Inform the user
+echo "Updated .bashrc with custom prompt and revert function."
+echo "Backup of the original .bashrc saved as .bashrc.bak"
