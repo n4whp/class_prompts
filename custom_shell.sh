@@ -17,19 +17,36 @@ cat << 'EOF' > "$BASHRC_PATH"
 # If not running interactively, don't do anything
 [ -z "$PS1" ] && return
 
-# Setup custom prompt
-CUSTOM_PS1='\[\e[1;32m\]┌──(\[\e[1;31m\]\u\[\e[1;32m\]㉿\h)-[\[\e[1;34m\]\w\[\e[1;32m\]]\n└─\$ \[\e[m\]'
-export PS1="$CUSTOM_PS1"
-
 # Save the original PS1 prompt
 if [ -z "$ORIGINAL_PS1" ]; then
     export ORIGINAL_PS1="$PS1"
 fi
 
-# Function to revert to the original prompt
-revert_prompt() {
-    export PS1="$ORIGINAL_PS1"
+# Define colors
+BLACK='\[\033[0;30m\]'
+RED='\[\033[0;31m\]'
+GREEN='\[\033[0;32m\]'
+YELLOW='\[\033[0;33m\]'
+BLUE='\[\033[0;34m\]'
+MAGENTA='\[\033[0;35m\]'
+CYAN='\[\033[0;36m\]'
+WHITE='\[\033[0;37m\]'
+RESET='\[\033[0m\]'
+
+# Function to update prompt dynamically
+update_prompt() {
+    local last_command_status=$?
+    if [ $last_command_status -eq 0 ]; then
+        # If command was successful, use green
+        PS1="${GREEN}┌──(${RED}\u${GREEN}㉿\h)-[${BLUE}\w${GREEN}]\n└─\$ ${RESET}"
+    else
+        # If command failed, use red
+        PS1="${RED}┌──(${RED}\u${RED}㉿\h)-[${BLUE}\w${RED}]\n└─\$ ${RESET}"
+    fi
 }
+
+# Set the custom prompt
+export PROMPT_COMMAND=update_prompt
 
 # Set LS_COLORS for `ls`
 # Blue directories, green executables
